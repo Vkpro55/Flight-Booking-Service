@@ -12,19 +12,37 @@ const bookingRepository = new BookingRepository();
  * @Expect -> One booking is create one full transaction 
  */
 async function createBooking(data) {
+
+    const transaction = await db.sequelize.transaction();
     try {
-        return await db.sequelize.transaction(async (t) => {
-            const flight = await axios.get(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}`);
-            const flightData = flight.data.data;
+        const flight = await axios.get(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}`);
+        const flightData = flight.data.data;
 
-            if (data.noOfSeats > flightData.totalSeats) {
-                throw new AppError("Not enough seats available", StatusCodes.BAD_REQUEST);
-            }
+        if (data.noOfSeats > flightData.totalSeats) {
+            throw new AppError("Not enough seats available", StatusCodes.BAD_REQUEST);
+        }
 
-            return true;
+        const totalBillingAmount = flightData.totalSeats * flightData.price;
+        const payLoad = { ...data, totalCost: totalBillingAmount };
+
+        const booking = await bookingRepository.createBooking(payLoad, transaction);
+        /**
+         * Update the Available seats in Flight
+         */
+        console.log("url : ", `${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}/seats`);
+        console.log("data.noOfSeats: ", data.noOfSeats);
+
+        await axios.patch(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}/seats`, {
+            seats: data.noOfSeats,
+            dec: true
         });
+
+
+        await transaction.commit();
+        return booking;
     } catch (error) {
-        console.error("Error is:", error);
+        await transaction.rollback();
+        console.log("From Service", error);
         throw error;
     }
 }
