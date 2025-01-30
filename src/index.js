@@ -2,6 +2,7 @@ const express = require("express");
 const apiRoutes = require("./routes");
 
 const { ServerConfig } = require("./config");
+const { CRON } = require("./utils/common");
 
 const app = express();
 
@@ -23,4 +24,5 @@ app.use("/api", apiRoutes);
 
 app.listen(ServerConfig.PORT, () => {
     console.log(`Successfully started the server on PORT : ${ServerConfig.PORT}`);
+    CRON.scheduleCrons();
 })  
