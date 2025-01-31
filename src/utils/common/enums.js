@@ -30,9 +30,15 @@ const BOOKING_STATUS = {
     PENDING: "pending"
 };
 
+const PAYMENT_STATUS = {
+    SUCCESS: "success",
+    PENDING: "pending"
+}
+
 module.exports = {
     SEAT_TYPE,
     SEAT_COLUMNS,
     SEAT_STATUS,
-    BOOKING_STATUS
+    BOOKING_STATUS,
+    PAYMENT_STATUS
 }
