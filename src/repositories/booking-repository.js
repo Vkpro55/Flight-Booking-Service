@@ -5,6 +5,8 @@ const { Booking } = require("../models");
 const { StatusCodes } = require("http-status-codes");
 const AppError = require("../utils/errors/app-errors");
 
+const { Enum } = require("../utils/common");
+const { CANCELLED, BOOKED } = Enum.BOOKING_STATUS;
 class BookingRepository extends CrudRepository {
     constructor() {
         super(Booking);
