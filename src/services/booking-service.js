@@ -25,7 +25,7 @@ async function createBooking(data) {
             throw new AppError("Not enough seats available", StatusCodes.BAD_REQUEST);
         }
 
-        const totalBillingAmount = data.noofSeats * flightData.price;
+        const totalBillingAmount = data.noOfSeats * flightData.price;
         const payLoad = { ...data, totalCost: totalBillingAmount };
 
         const booking = await bookingRepository.createBooking(payLoad, transaction);
@@ -83,11 +83,11 @@ async function makePayment(data) {
 
         await bookingRepository.update(data.bookingId, { status: BOOKED }, transaction);
 
-        // await QueueConfig.sendData({
-        //     recipientEmail: "vinodrao835@gmail.com",
-        //     subject: "Flight Booked",
-        //     text: `Flight is Booked for the flight ${bookingDetails.userId}`
-        // });
+        await QueueConfig.sendData({
+            recipientEmail: "vinodrao835@gmail.com",
+            subject: "Flight Booked",
+            text: `Flight is Booked for the flight ${bookingDetails.userId}`
+        });
 
         await transaction.commit();
     } catch (error) {
