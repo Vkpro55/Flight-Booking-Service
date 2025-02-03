@@ -2,7 +2,7 @@ const axios = require("axios");
 
 const db = require("../models");
 const { BookingRepository } = require("../repositories");
-const { ServerConfig } = require("../config");
+const { ServerConfig, QueueConfig } = require("../config");
 const AppError = require("../utils/errors/app-errors");
 const { StatusCodes } = require("http-status-codes");
 
@@ -25,7 +25,7 @@ async function createBooking(data) {
             throw new AppError("Not enough seats available", StatusCodes.BAD_REQUEST);
         }
 
-        const totalBillingAmount = flightData.totalSeats * flightData.price;
+        const totalBillingAmount = data.noofSeats * flightData.price;
         const payLoad = { ...data, totalCost: totalBillingAmount };
 
         const booking = await bookingRepository.createBooking(payLoad, transaction);
@@ -45,7 +45,6 @@ async function createBooking(data) {
         return booking;
     } catch (error) {
         await transaction.rollback();
-        console.log("From Service", error);
         throw error;
     }
 }
@@ -55,6 +54,10 @@ async function makePayment(data) {
     const transaction = await db.sequelize.transaction();
     try {
         const bookingDetails = await bookingRepository.get(data.bookingId, transaction);
+
+        if (bookingDetails) {
+            console.log("Yes BookingDeatils");
+        }
 
         if (bookingDetails.status == CANCELLED) {
             throw new AppError('The booking has expired', StatusCodes.BAD_REQUEST);
@@ -79,9 +82,16 @@ async function makePayment(data) {
         }
 
         await bookingRepository.update(data.bookingId, { status: BOOKED }, transaction);
-        await transaction.commit();
 
+        // await QueueConfig.sendData({
+        //     recipientEmail: "vinodrao835@gmail.com",
+        //     subject: "Flight Booked",
+        //     text: `Flight is Booked for the flight ${bookingDetails.userId}`
+        // });
+
+        await transaction.commit();
     } catch (error) {
+        console.log("From Service", error);
         await transaction.rollback();
         throw error;
     }
