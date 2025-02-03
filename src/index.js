@@ -16,6 +16,6 @@ app.listen(ServerConfig.PORT, async () => {
     console.log(`Successfully started the server on PORT : ${ServerConfig.PORT}`);
     CRON();
 
-    await QueueConfig.connectQueue();
-    console.log("queue connected");
+    // await QueueConfig.connectQueue();
+    // console.log("queue connected");
 })  

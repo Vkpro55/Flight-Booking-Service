@@ -83,11 +83,11 @@ async function makePayment(data) {
 
         await bookingRepository.update(data.bookingId, { status: BOOKED }, transaction);
 
-        await QueueConfig.sendData({
-            recipientEmail: "vinodrao835@gmail.com",
-            subject: "Flight Booked",
-            text: `Flight is Booked for the flight ${bookingDetails.userId}`
-        });
+        // await QueueConfig.sendData({
+        //     recipientEmail: "vinodrao835@gmail.com",
+        //     subject: "Flight Booked",
+        //     text: `Flight is Booked for the flight ${bookingDetails.userId}`
+        // });
 
         await transaction.commit();
     } catch (error) {
