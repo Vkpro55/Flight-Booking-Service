@@ -10,7 +10,7 @@ const { Enum } = require("../utils/common");
 const { INITIATED } = Enum.BOOKING_STATUS;
 const { BOOKED } = Enum.SEAT_STATUS;
 
-const { ServerConfig } = require("../config");
+const { ServerConfig, QueueConfig } = require("../config");
 
 class BookingRepository extends CrudRepository {
     constructor() {
@@ -76,10 +76,16 @@ class BookingRepository extends CrudRepository {
                 transaction
             })
             booking.status = BOOKED;
-            await booking.save({ transaction: transaction });
+            await booking.save();
 
             const newBooking = await FlightSeatBookings.create({
                 seatId, flightId, userId, bookingId
+            });
+
+            QueueConfig.sendData({
+                recipientEmail: "vinodrao835@gmail.com",
+                subject: "Flight Booked",
+                text: `Online Check-in done for the flight ${flightId} with ${bookingId}`
             });
 
             await transaction.commit();
