@@ -4,7 +4,7 @@ const { BookingService } = require("../services");
 const { SuccessResponse, ErrorResponse } = require("../utils/common");
 
 const { Enum } = require("../utils/common");
-const { BOOKED, CANCELLED, PENDING } = Enum.BOOKING_STATUS;
+const { BOOKED, PENDING } = Enum.BOOKING_STATUS;
 
 const { IdempotentKey } = require("../models");
 const db = require("../models");
@@ -81,7 +81,30 @@ async function makePayment(req, res) {
     }
 }
 
+async function seatBooking(req, res) {
+    try {
+
+        const seatDetails = await BookingService.seatBooking({
+            seatId: +req.params.id,
+            flightId: req.body.flightId,
+            userId: req.body.userId,
+            bookingId: req.body.bookingId
+        });
+
+        SuccessResponse.data = seatDetails;
+        return res
+            .status(StatusCodes.OK)
+            .json(SuccessResponse);
+    } catch (error) {
+        ErrorResponse.error = error;
+        return res
+            .status(error.statusCode)
+            .json(ErrorResponse);
+    }
+}
+
 module.exports = {
     createBooking,
-    makePayment
+    makePayment,
+    seatBooking
 }

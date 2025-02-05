@@ -1,12 +1,17 @@
 const { Op } = require("sequelize");
+const axios = require("axios");
 
 const CrudRepository = require("./crud-repository");
-const { Booking } = require("../models");
+const { Booking, sequelize, FlightSeatBookings } = require("../models");
 const { StatusCodes } = require("http-status-codes");
 const AppError = require("../utils/errors/app-errors");
 
 const { Enum } = require("../utils/common");
-const { CANCELLED, BOOKED } = Enum.BOOKING_STATUS;
+const { INITIATED } = Enum.BOOKING_STATUS;
+const { BOOKED } = Enum.SEAT_STATUS;
+
+const { ServerConfig } = require("../config");
+
 class BookingRepository extends CrudRepository {
     constructor() {
         super(Booking);
@@ -38,18 +43,58 @@ class BookingRepository extends CrudRepository {
     }
 
     async cancelOldBookings(timestamp) {
-        const response = await Booking.update(
-            { status: CANCELLED },
-            {
-                where: {
-                    createdAt: { [Op.lt]: timestamp },
-                    status: { [Op.notIn]: [BOOKED, CANCELLED] }
-                }
+        const bookings = await Booking.findAll({
+            where: {
+                createdAt: { [Op.lt]: timestamp },
+                status: { [Op.eq]: INITIATED }
             }
-        );
-        return response;
+        });
+
+        return bookings;
     }
 
+    async seatBooking({ seatId, flightId, userId, bookingId }) {
+        const transaction = await sequelize.transaction();
+        try {
+            const seatUpdateResponse = await axios.patch(
+                `${ServerConfig.FLIGHT_SERVICE}/api/v1/seatdata/${seatId}`,
+                {
+                    status: BOOKED
+                },
+                { validateStatus: () => true }
+            );
+            const seatData = seatUpdateResponse.data;
+
+            if (seatData.success === false) {
+                throw new AppError(seatData.error.explanation, seatData.error.statusCode);
+            }
+
+            const booking = await Booking.findOne({
+                where: {
+                    id: bookingId
+                },
+                transaction
+            })
+            booking.status = BOOKED;
+            await booking.save({ transaction: transaction });
+
+            const newBooking = await FlightSeatBookings.create({
+                seatId, flightId, userId, bookingId
+            });
+
+            await transaction.commit();
+            return newBooking;
+        } catch (error) {
+            console.error("Error in seat booking:", error);
+            await transaction.rollback();
+            if (error instanceof AppError) {
+                throw error;
+            }
+            else {
+                throw new AppError("Unexpected error in booking service", StatusCodes.INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
 
 }
 

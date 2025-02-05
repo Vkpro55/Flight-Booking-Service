@@ -12,7 +12,9 @@ module.exports = (sequelize, DataTypes) => {
   class Booking extends Model {
 
     static associate(models) {
-
+      this.hasMany(models.FlightSeatBookings, {
+        foreignKey: "bookingId"
+      })
     }
 
   }

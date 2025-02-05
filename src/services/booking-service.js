@@ -7,7 +7,7 @@ const AppError = require("../utils/errors/app-errors");
 const { StatusCodes } = require("http-status-codes");
 
 const { Enum } = require("../utils/common");
-const { BOOKED, CANCELLED } = Enum.BOOKING_STATUS;
+const { PENDING, CANCELLED } = Enum.BOOKING_STATUS;
 
 const bookingRepository = new BookingRepository();
 
@@ -15,7 +15,6 @@ const bookingRepository = new BookingRepository();
  * @Expect -> One booking is create one full transaction 
  */
 async function createBooking(data) {
-
     const transaction = await db.sequelize.transaction();
     try {
         const flight = await axios.get(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}`);
@@ -49,15 +48,10 @@ async function createBooking(data) {
     }
 }
 
-
 async function makePayment(data) {
     const transaction = await db.sequelize.transaction();
     try {
         const bookingDetails = await bookingRepository.get(data.bookingId, transaction);
-
-        if (bookingDetails) {
-            console.log("Yes BookingDeatils");
-        }
 
         if (bookingDetails.status == CANCELLED) {
             throw new AppError('The booking has expired', StatusCodes.BAD_REQUEST);
@@ -77,11 +71,11 @@ async function makePayment(data) {
         if (bookingDetails.totalCost !== data.totalCost) {
             throw new AppError('The amount of the payment doesnt match', StatusCodes.BAD_REQUEST);
         }
-        if (bookingDetails.userId != data.userId) {
+        if (bookingDetails.userId !== data.userId) {
             throw new AppError('The user corresponding to the booking doesnt match', StatusCodes.BAD_REQUEST);
         }
 
-        await bookingRepository.update(data.bookingId, { status: BOOKED }, transaction);
+        await bookingRepository.update(data.bookingId, { status: PENDING }, transaction);
 
         QueueConfig.sendData({
             recipientEmail: "vinodrao835@gmail.com",
@@ -90,6 +84,8 @@ async function makePayment(data) {
         });
 
         await transaction.commit();
+
+        return bookingDetails;
     } catch (error) {
         console.log("From Service", error);
         await transaction.rollback();
@@ -124,12 +120,16 @@ async function cancelBooking(bookingId) {
     }
 }
 
-
 async function cancelOldBookings() {
     try {
-        console.log("Inside service");
         const time = new Date(Date.now() - 1000 * 300); // time 5 mins ago
         const response = await bookingRepository.cancelOldBookings(time);
+
+        for (let i = 0; i < response.length; i++) {
+            console.log("id", response[i].dataValues.id);
+            await cancelBooking(response[i].dataValues.id);
+        }
+
         return response;
     } catch (error) {
         console.error("Error in canceling old bookings:", error);
@@ -137,10 +137,24 @@ async function cancelOldBookings() {
     }
 }
 
+async function seatBooking(data) {
+    try {
+        const newBooking = await bookingRepository.seatBooking({
+            flightId: data.flightId,
+            seatId: data.seatId,
+            userId: data.userId,
+            bookingId: data.bookingId
+        });
 
+        return newBooking;
+    } catch (error) {
+        throw error;
+    }
+}
 
 module.exports = {
     createBooking,
     makePayment,
-    cancelOldBookings
+    cancelOldBookings,
+    seatBooking
 }
